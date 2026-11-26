@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VidShare — wspólne filmy MP4</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23ff4d5e'/><path d='M38 28 L74 50 L38 72Z' fill='white'/></svg>">
+<style>
+:root{
+  --accent:#ff4d5e; --bg:#0f1115; --bg2:#171a21; --bg3:#20242d; --line:#2a2f3a;
+  --text:#eef0f4; --muted:#9aa1ae; --radius:14px; --cols:280px;
+  font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+[data-theme="light"]{ --bg:#f6f7f9; --bg2:#ffffff; --bg3:#eef0f3; --line:#e1e4ea; --text:#15181e; --muted:#636b78; }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{min-height:100vh}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+/* top bar */
+header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:10px 20px;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.3px;white-space:nowrap}
+.logo i{width:32px;height:32px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
+.logo i:after{content:"";border-left:12px solid #fff;border-top:8px solid transparent;border-bottom:8px solid transparent;margin-left:3px}
+.search{flex:1;max-width:560px;margin:0 auto;display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.search input{flex:1;border:0;background:transparent;padding:10px 16px;outline:none;min-width:0}
+.search button{border:0;background:var(--bg3);padding:0 16px}
+.btn{border:1px solid var(--line);background:var(--bg2);padding:9px 16px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{background:var(--bg3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:#ff6b6b;border-color:#ff6b6b55}
+.menu-toggle{display:none;border:0;background:none;font-size:22px}
+
+/* layout */
+.layout{display:flex}
+nav{width:220px;flex-shrink:0;padding:14px 10px;position:sticky;top:57px;height:calc(100vh - 57px);overflow:auto;border-right:1px solid var(--line)}
+nav a{display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:10px;color:var(--muted);font-weight:500}
+nav a:hover{background:var(--bg2);color:var(--text)}
+nav a.active{background:var(--bg3);color:var(--text)}
+nav a.active .ico{color:var(--accent)}
+nav .ico{width:20px;text-align:center}
+nav hr{border:0;border-top:1px solid var(--line);margin:12px 6px}
+nav .small{font-size:12px;color:var(--muted);padding:6px 14px;line-height:1.5}
+main{flex:1;min-width:0;padding:22px 26px 60px}
+h1{font-size:24px;margin:0 0 16px}
+h2{font-size:18px;margin:24px 0 12px}
+
+/* chips & toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.chip{border:1px solid var(--line);background:var(--bg2);padding:6px 14px;border-radius:999px;font-size:14px}
+.chip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+select,input[type=text],input[type=password],textarea{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none}
+select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cols),1fr));gap:22px 18px}
+.card{cursor:pointer;min-width:0}
+.thumb{position:relative;aspect-ratio:16/9;border-radius:var(--radius);overflow:hidden;background:linear-gradient(135deg,var(--bg3),var(--bg2))}
+.thumb video{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.card:hover .thumb video{transform:scale(1.03)}
+.dur{position:absolute;right:8px;bottom:8px;background:#000c;color:#fff;font-size:12px;font-weight:600;padding:2px 6px;border-radius:5px}
+.fav-badge{position:absolute;left:8px;top:8px;background:#000a;color:#fff;font-size:12px;padding:3px 7px;border-radius:6px}
+.meta{display:flex;gap:12px;padding:10px 2px}
+.avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-weight:700;color:#fff;font-size:15px}
+.meta b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:15px;line-height:1.35}
+.meta small{display:block;color:var(--muted);font-size:13px;margin-top:3px}
+.empty{text-align:center;color:var(--muted);padding:70px 20px;border:1px dashed var(--line);border-radius:var(--radius)}
+.empty .big{font-size:42px;margin-bottom:8px}
+
+/* watch */
+.watch{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px}
+.watch.theater{grid-template-columns:1fr}
+.player{background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9}
+.player video{width:100%;height:100%;display:block;background:#000}
+.watch h1{margin:14px 0 8px;font-size:21px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.desc{background:var(--bg2);border-radius:var(--radius);padding:14px 16px;margin-top:14px;white-space:pre-wrap;line-height:1.5;font-size:14px}
+.desc .stats{font-weight:600;margin-bottom:6px}
+.side .mini{display:flex;gap:10px;margin-bottom:12px;cursor:pointer}
+.side .mini .thumb{width:168px;flex-shrink:0;border-radius:10px}
+.side .mini b{font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.side .mini small{color:var(--muted);font-size:12px;display:block;margin-top:4px}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ctl label{font-size:13px;color:var(--muted)}
+
+/* upload */
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:22px;max-width:760px}
+.drop{border:2px dashed var(--line);border-radius:var(--radius);padding:40px 20px;text-align:center;cursor:pointer;transition:.2s}
+.drop.over,.drop:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.drop .big{font-size:40px}
+.preview{margin-top:16px;border-radius:12px;overflow:hidden;background:#000;max-height:340px}
+.preview video{width:100%;max-height:340px;display:block}
+.form{display:grid;gap:14px;margin-top:18px}
+.form label{display:grid;gap:6px;font-size:14px;font-weight:600}
+.form textarea{min-height:90px;resize:vertical}
+.progress{height:10px;background:var(--bg3);border-radius:99px;overflow:hidden}
+.progress div{height:100%;width:0;background:var(--accent);transition:width .2s}
+
+/* settings */
+.set{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:15px 0;border-bottom:1px solid var(--line)}
+.set:last-child{border-bottom:0}
+.set div b{display:block;font-size:15px}
+.set div small{color:var(--muted);font-size:13px}
+.switch{position:relative;width:46px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--bg3);border:1px solid var(--line);border-radius:99px;transition:.2s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:20px;height:20px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s}
+.switch input:checked+span{background:var(--accent);border-color:var(--accent)}
+.switch input:checked+span:before{transform:translateX(20px)}
+.swatches{display:flex;gap:8px}
+.swatches button{width:28px;height:28px;border-radius:50%;border:3px solid transparent}
+.swatches button.on{border-color:var(--text)}
+input[type=range]{accent-color:var(--accent);width:160px}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.tabs button{border:0;background:none;padding:10px 14px;color:var(--muted);border-bottom:2px solid transparent;font-weight:600}
+.tabs button.on{color:var(--text);border-color:var(--accent)}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);
+  padding:12px 20px;border-radius:10px;font-weight:600;transition:.3s;z-index:99;opacity:0;max-width:90vw}
+.toast.show{transform:translateX(-50%);opacity:1}
+.spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:60px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media (max-width:1000px){ .watch{grid-template-columns:1fr} }
+@media (max-width:760px){
+  nav{position:fixed;left:0;top:57px;z-index:30;background:var(--bg);transform:translateX(-100%);transition:.25s}
+  nav.open{transform:none;box-shadow:0 10px 40px #0008}
+  .menu-toggle{display:block}
+  main{padding:16px}
+  header{gap:10px;padding:10px 12px}
+  .logo span,.btn .txt{display:none}
+  .side .mini .thumb{width:140px}
+}
+</style>
+</head>
+<body>
+<header>
+  <button class="menu-toggle" id="menuBtn" aria-label="Menu">☰</button>
+  <a href="#/" class="logo"><i></i><span>VidShare</span></a>
+  <form class="search" id="searchForm">
+    <input id="q" type="search" placeholder="Szukaj filmów, autorów…" autocomplete="off">
+    <button type="submit" aria-label="Szukaj">🔍</button>
+  </form>
+  <a href="#/upload" class="btn primary">⬆ <span class="txt">Prześlij</span></a>
+</header>
+
+<div class="layout">
+  <nav id="nav">
+    <a href="#/" data-r="home"><span class="ico">🏠</span>Główna</a>
+    <a href="#/upload" data-r="upload"><span class="ico">⬆️</span>Prześlij film</a>
+    <a href="#/favorites" data-r="favorites"><span class="ico">❤️</span>Ulubione</a>
+    <a href="#/history" data-r="history"><span class="ico">🕘</span>Historia</a>
+    <hr>
+    <a href="#/settings" data-r="settings"><span class="ico">⚙️</span>Ustawienia</a>
+    <a href="#/about" data-r="about"><span class="ico">ℹ️</span>O aplikacji</a>
+    <hr>
+    <div class="small" id="statsBox"></div>
+  </nav>
+  <main id="app"><div class="spinner"></div></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ---------- stan i ustawienia ---------- */
+const DEFAULTS = {
+  theme:'dark', accent:'#ff4d5e', autoplay:true, autoplayNext:false, loop:false, muted:false,
+  volume:0.8, speed:1, hoverPreview:true, density:'normal', nickname:'', sort:'new', theater:false
+};
+const ACCENTS = ['#ff4d5e','#3b82f6','#22c55e','#a855f7','#f59e0b','#ec4899','#14b8a6'];
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('vs_'+k); return v==null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('vs_'+k, JSON.stringify(v)); }catch{} }
+};
+let S = { ...DEFAULTS, ...store.get('settings', {}) };
+let favorites = store.get('favorites', []);
+let history = store.get('history', []);
+let videos = [], categories = ['Inne'], loaded = false, activeCat = 'Wszystkie', query = '';
+let adminPass = sessionStorage.getItem('vs_admin') || '';
+
+const $ = (s, el=document) => el.querySelector(s);
+const app = $('#app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDur = s => { s=Math.round(s||0); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=String(s%60).padStart(2,'0'); return h? `${h}:${String(m).padStart(2,'0')}:${x}` : `${m}:${x}`; };
+const fmtSize = b => b>1e9 ? (b/1e9).toFixed(2)+' GB' : (b/1e6).toFixed(1)+' MB';
+const ago = t => { const d=(Date.now()-t)/1000;
+  if(d<60) return 'przed chwilą'; if(d<3600) return Math.floor(d/60)+' min temu';
+  if(d<86400) return Math.floor(d/3600)+' godz. temu'; if(d<2592000) return Math.floor(d/86400)+' dni temu';
+  return new Date(t).toLocaleDateString('pl-PL'); };
+const colorFor = s => { let h=0; for(const c of String(s)) h=(h*31+c.charCodeAt(0))%360; return `hsl(${h} 60% 48%)`; };
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+function saveSettings(){ store.set('settings', S); applySettings(); }
+function applySettings(){
+  const theme = S.theme==='system' ? (matchMedia('(prefers-color-scheme: light)').matches?'light':'dark') : S.theme;
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.setProperty('--accent', S.accent);
+  document.documentElement.style.setProperty('--cols', {compact:'210px',normal:'280px',large:'380px'}[S.density]);
+}
+applySettings();
+
+/* ---------- API ---------- */
+async function loadVideos(force){
+  if(loaded && !force) return;
+  try{
+    const r = await fetch('/api/videos', {cache:'no-store'});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error || 'Błąd serwera');
+    videos = j.videos || []; categories = j.categories || categories; loaded = true;
+  }catch(e){ loaded = true; videos = []; window._loadError = e.message; }
+  updateStats();
+}
+function updateStats(){
+  const total = videos.reduce((a,v)=>a+(v.size||0),0);
+  $('#statsBox').innerHTML = `${videos.length} filmów · ${fmtSize(total)}<br>Wszystko jest publiczne — każdy widzi przesłane filmy.`;
+}
+
+/* ---------- komponenty ---------- */
+function card(v){
+  const fav = favorites.includes(v.id);
+  return `<a class="card" href="#/watch/${v.id}" data-id="${v.id}">
+    <div class="thumb">
+      <video src="${esc(v.url)}#t=1" preload="metadata" muted playsinline></video>
+      ${v.duration?`<span class="dur">${fmtDur(v.duration)}</span>`:''}
+      ${fav?'<span class="fav-badge">❤ ulubiony</span>':''}
+    </div>
+    <div class="meta">
+      <div class="avatar" style="background:${colorFor(v.author)}">${esc(v.author[0]||'?').toUpperCase()}</div>
+      <div><b>${esc(v.title)}</b><small>${esc(v.author)} · ${esc(v.category)}</small><small>${ago(v.createdAt)}</small></div>
+    </div></a>`;
+}
+function bindHover(root){
+  if(!S.hoverPreview) return;
+  root.querySelectorAll('.card,.mini').forEach(c=>{
+    const vid = c.querySelector('video'); if(!vid) return;
+    c.addEventListener('mouseenter', ()=>{ vid.currentTime=0; vid.play().catch(()=>{}); });
+    c.addEventListener('mouseleave', ()=>{ vid.pause(); vid.currentTime=1; });
+  });
+}
+function sortList(list){
+  const l=[...list];
+  if(S.sort==='old') l.sort((a,b)=>a.createdAt-b.createdAt);
+  else if(S.sort==='az') l.sort((a,b)=>a.title.localeCompare(b.title,'pl'));
+  else if(S.sort==='long') l.sort((a,b)=>b.duration-a.duration);
+  else if(S.sort==='short') l.sort((a,b)=>a.duration-b.duration);
+  else l.sort((a,b)=>b.createdAt-a.createdAt);
+  return l;
+}
+function filtered(){
+  const q=query.toLowerCase();
+  return sortList(videos.filter(v=>(activeCat==='Wszystkie'||v.category===activeCat) &&
+    (!q || (v.title+' '+v.author+' '+v.description+' '+v.category).toLowerCase().includes(q))));
+}
+const emptyBox = (icon, title, text, cta='') => `<div class="empty"><div class="big">${icon}</div><h2>${title}</h2><p>${text}</p>${cta}</div>`;
+
+/* ---------- widoki ---------- */
+async function viewHome(){
+  app.innerHTML = '<div class="spinner"></div>';
+  await loadVideos();
+  const render = () => {
+    const list = filtered();
+    $('#homeGrid').innerHTML = list.length ? list.map(card).join('') :
+      window._loadError ? emptyBox('⚠️','Nie udało się wczytać filmów', esc(window._loadError)) :
+      videos.length ? emptyBox('🔎','Brak wyników','Zmień kategorię albo wyszukiwaną frazę.') :
+      emptyBox('🎬','Jeszcze nie ma żadnych filmów','Bądź pierwszy — prześlij swój film MP4!', '<a class="btn primary" href="#/upload">⬆ Prześlij film</a>');
+    bindHover($('#homeGrid'));
+    $('#chips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c.dataset.c===activeCat));
+  };
+  app.innerHTML = `
+    ${query?`<h1>Wyniki dla „${esc(query)}”</h1>`:''}
+    <div class="toolbar">
+      <div class="chips" id="chips">${['Wszystkie',...categories].map(c=>`<button class="chip" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <select id="sortSel" aria-label="Sortowanie">
+        <option value="new">Najnowsze</option><option value="old">Najstarsze</option>
+        <option value="az">Alfabetycznie</option><option value="long">Najdłuższe</option><option value="short">Najkrótsze</option>
+      </select>
+      <button class="btn" id="refresh" title="Odśwież">↻</button>
+    </div>
+    <div class="grid" id="homeGrid"></div>`;
+  $('#sortSel').value = S.sort;
+  $('#sortSel').onchange = e => { S.sort=e.target.value; saveSettings(); render(); };
+  $('#chips').onclick = e => { const c=e.target.closest('.chip'); if(c){ activeCat=c.dataset.c; render(); } };
+  $('#refresh').onclick = async () => { await loadVideos(true); render(); toast('Odświeżono'); };
+  render();
+}
+
+async function viewList(kind){
+  app.innerHTML = '<div class="spinner"></div>';
+  await loadVideos();
+  const ids = kind==='favorites' ? favorites : history.map(h=>h.id);
+  const list = ids.map(id=>videos.find(v=>v.id===id)).filter(Boolean);
+  const title = kind==='favorites' ? '❤️ Ulubione' : '🕘 Historia oglądania';
+  app.innerHTML = `<div class="row between"><h1>${title}</h1>
+      ${list.length?`<button class="btn danger" id="clr">Wyczyść</button>`:''}</div>
+    <p style="color:var(--muted);margin-top:-8px">Zapisywane tylko na tym urządzeniu.</p>
+    <div class="grid">${list.length ? list.map(card).join('') :
+      emptyBox(kind==='favorites'?'💔':'🕘', kind==='favorites'?'Brak ulubionych':'Historia jest pusta',
+        kind==='favorites'?'Kliknij ❤ pod filmem, żeby dodać go tutaj.':'Obejrzane filmy pojawią się tutaj.')}</div>`;
+  bindHover(app);
+  const clr=$('#clr'); if(clr) clr.onclick=()=>{
+    if(kind==='favorites'){ favorites=[]; store.set('favorites',favorites); } else { history=[]; store.set('history',history); }
+    viewList(kind);
+  };
+}
+
+async function viewWatch(id){
+  app.innerHTML = '<div class="spinner"></div>';
+  await loadVideos();
+  let v = videos.find(x=>x.id===id);
+  if(!v){ await loadVideos(true); v = videos.find(x=>x.id===id); }
+  if(!v){ app.innerHTML = emptyBox('🚫','Nie znaleziono filmu','Mógł zostać usunięty.','<a class="btn" href="#/">Wróć na główną</a>'); return; }
+
+  history = [{id, t:Date.now()}, ...history.filter(h=>h.id!==id)].slice(0,100); store.set('history',history);
+  const others = sortList(videos.filter(x=>x.id!==id));
+  const related = [...others.filter(x=>x.category===v.category), ...others.filter(x=>x.category!==v.category)].slice(0,15);
+  const isFav = () => favorites.includes(id);
+
+  app.innerHTML = `<div class="watch ${S.theater?'theater':''}" id="watch">
+    <div>
+      <div class="player"><video id="pl" src="${esc(v.url)}" controls playsinline></video></div>
+      <h1>${esc(v.title)}</h1>
+      <div class="row between">
+        <div class="row">
+          <div class="avatar" style="background:${colorFor(v.author)}">${esc(v.author[0]||'?').toUpperCase()}</div>
+          <div><b>${esc(v.author)}</b><br><small style="color:var(--muted)">${esc(v.category)}</small></div>
+        </div>
+        <div class="row">
+          <button class="btn" id="favBtn"></button>
+          <button class="btn" id="shareBtn">🔗 Udostępnij</button>
+          <a class="btn" href="${esc(v.url)}" download target="_blank" rel="noopener">⬇ Pobierz</a>
+          <button class="btn danger" id="delBtn" title="Tylko administrator">🗑</button>
+        </div>
+      </div>
+      <div class="ctl" style="margin-top:12px">
+        <label>Prędkość</label>
+        <select id="spd">${[0.25,0.5,0.75,1,1.25,1.5,1.75,2].map(s=>`<option value="${s}">${s}×</option>`).join('')}</select>
+        <button class="btn" id="loopBtn"></button>
+        <button class="btn" id="theaterBtn">▭ Tryb kinowy</button>
+        <button class="btn" id="pipBtn">⧉ Obraz w obrazie</button>
+      </div>
+      <div class="desc"><div class="stats">Dodano ${new Date(v.createdAt).toLocaleString('pl-PL')} · ${fmtDur(v.duration)} · ${fmtSize(v.size||0)}</div>${esc(v.description)||'<i style="color:var(--muted)">Brak opisu.</i>'}</div>
+    </div>
+    <div class="side">
+      <h2 style="margin-top:0">Następne</h2>
+      ${related.length ? related.map(r=>`<a class="mini" href="#/watch/${r.id}">
+        <div class="thumb"><video src="${esc(r.url)}#t=1" preload="metadata" muted playsinline></video>${r.duration?`<span class="dur">${fmtDur(r.duration)}</span>`:''}</div>
+        <div><b>${esc(r.title)}</b><small>${esc(r.author)}</small><small>${ago(r.createdAt)}</small></div></a>`).join('')
+        : '<p style="color:var(--muted)">Brak innych filmów.</p>'}
+    </div></div>`;
+  bindHover($('.side'));
+
+  const pl = $('#pl');
+  pl.volume = S.volume; pl.muted = S.muted; pl.loop = S.loop; pl.playbackRate = S.speed;
+  $('#spd').value = S.speed;
+  if(S.autoplay) pl.play().catch(()=>{ pl.muted = true; pl.play().catch(()=>{}); });
+  pl.addEventListener('volumechange', ()=>{ S.volume = pl.volume; S.muted = pl.muted; store.set('settings',S); });
+  pl.addEventListener('ended', ()=>{ if(S.autoplayNext && !pl.loop && related[0]) location.hash = '#/watch/'+related[0].id; });
+
+  const favLabel = () => $('#favBtn').innerHTML = isFav() ? '❤️ W ulubionych' : '🤍 Ulubione';
+  const loopLabel = () => $('#loopBtn').innerHTML = pl.loop ? '🔁 Pętla: wł.' : '🔁 Pętla: wył.';
+  favLabel(); loopLabel();
+  $('#favBtn').onclick = () => { favorites = isFav() ? favorites.filter(x=>x!==id) : [id,...favorites]; store.set('favorites',favorites); favLabel(); toast(isFav()?'Dodano do ulubionych':'Usunięto z ulubionych'); };
+  $('#spd').onchange = e => { pl.playbackRate = +e.target.value; };
+  $('#loopBtn').onclick = () => { pl.loop = !pl.loop; loopLabel(); };
+  $('#theaterBtn').onclick = () => { S.theater=!S.theater; saveSettings(); $('#watch').classList.toggle('theater', S.theater); };
+  $('#pipBtn').onclick = async () => { try{ document.pictureInPictureElement ? await document.exitPictureInPicture() : await pl.requestPictureInPicture(); }catch{ toast('Twoja przeglądarka nie obsługuje PiP'); } };
+  $('#shareBtn').onclick = async () => {
+    const link = location.href;
+    if(navigator.share) { try{ await navigator.share({title:v.title, url:link}); return; }catch{} }
+    try{ await navigator.clipboard.writeText(link); toast('Skopiowano link'); }catch{ prompt('Skopiuj link:', link); }
+  };
+  $('#delBtn').onclick = async () => {
+    let pass = adminPass || prompt('Hasło administratora:');
+    if(!pass) return;
+    if(!confirm(`Na pewno usunąć „${v.title}”? Tego nie da się cofnąć.`)) return;
+    const r = await fetch('/api/videos?id='+encodeURIComponent(id), {method:'DELETE', headers:{'x-admin-password':pass}});
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ toast(j.error||'Nie udało się usunąć'); if(r.status===401){ adminPass=''; sessionStorage.removeItem('vs_admin'); } return; }
+    adminPass = pass; sessionStorage.setItem('vs_admin', pass);
+    videos = videos.filter(x=>x.id!==id); updateStats(); toast('Usunięto film'); location.hash = '#/';
+  };
+}
+
+function viewUpload(){
+  app.innerHTML = `<h1>⬆️ Prześlij film</h1>
+  <div class="panel">
+    <div class="drop" id="drop"><div class="big">🎞️</div><b>Przeciągnij tutaj plik MP4</b><p style="color:var(--muted);margin:6px 0 0">albo kliknij, żeby wybrać z dysku</p>
+      <input type="file" id="file" accept="video/mp4,.mp4" hidden></div>
+    <div class="preview hidden" id="prev"><video id="prevVid" controls muted playsinline></video></div>
+    <div class="form hidden" id="form">
+      <label>Tytuł *<input type="text" id="title" maxlength="100" required></label>
+      <label>Opis<textarea id="desc" maxlength="1000" placeholder="O czym jest film?"></textarea></label>
+      <div class="row" style="gap:14px">
+        <label style="flex:1">Kategoria<select id="cat">${categories.map(c=>`<option>${esc(c)}</option>`).join('')}</select></label>
+        <label style="flex:1">Autor<input type="text" id="author" maxlength="40" placeholder="Anonim" value="${esc(S.nickname)}"></label>
+      </div>
+      <small style="color:var(--muted)">⚠ Film będzie publiczny — zobaczy go każdy odwiedzający stronę.</small>
+      <div class="progress hidden" id="prog"><div></div></div>
+      <div class="row"><button class="btn primary" id="send">⬆ Opublikuj</button><button class="btn" id="cancel">Anuluj</button><span id="status" style="color:var(--muted)"></span></div>
+    </div>
+  </div>`;
+  if(!loaded) loadVideos().then(()=>{ const sel=$('#cat'); if(sel) sel.innerHTML=categories.map(c=>`<option>${esc(c)}</option>`).join(''); });
+
+  let file = null, duration = 0, busy = false;
+  const drop=$('#drop'), input=$('#file');
+  drop.onclick = () => input.click();
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); pick(e.dataTransfer.files[0]); };
+  input.onchange = () => pick(input.files[0]);
+
+  function pick(f){
+    if(!f) return;
+    if(!(f.type==='video/mp4' || /\.mp4$/i.test(f.name))) return toast('Obsługiwane są tylko pliki MP4');
+    file = f;
+    const pv=$('#prevVid'); pv.src = URL.createObjectURL(f);
+    pv.onloadedmetadata = () => { duration = pv.duration || 0; };
+    $('#prev').classList.remove('hidden'); $('#form').classList.remove('hidden');
+    drop.querySelector('b').textContent = `${f.name} (${fmtSize(f.size)})`;
+    if(!$('#title').value) $('#title').value = f.name.replace(/\.mp4$/i,'').replace(/[_-]+/g,' ').slice(0,100);
+  }
+  $('#cancel').onclick = () => viewUpload();
+  $('#send').onclick = async () => {
+    if(busy || !file) return;
+    const title = $('#title').value.trim(); if(!title) return toast('Podaj tytuł');
+    busy = true; $('#send').disabled = true;
+    const prog=$('#prog'), bar=prog.firstElementChild, status=$('#status');
+    prog.classList.remove('hidden'); status.textContent = 'Wysyłanie…';
+    try{
+      const { upload } = await import('https://esm.sh/@vercel/blob@1/client');
+      const safe = file.name.replace(/\.mp4$/i,'').normalize('NFD').replace(/[^\w-]+/g,'-').slice(0,50) || 'film';
+      const blob = await upload(`videos/${safe}.mp4`, file, {
+        access:'public', handleUploadUrl:'/api/upload', contentType:'video/mp4', multipart: file.size > 50e6,
+        onUploadProgress: p => { bar.style.width = p.percentage+'%'; status.textContent = `Wysyłanie… ${Math.round(p.percentage)}%`; }
+      });
+      status.textContent = 'Zapisywanie…';
+      const r = await fetch('/api/videos', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ url:blob.url, title, description:$('#desc').value, category:$('#cat').value,
+          author:$('#author').value.trim() || S.nickname, duration })});
+      const meta = await r.json();
+      if(!r.ok) throw new Error(meta.error || 'Błąd zapisu');
+      if($('#author').value.trim() && !S.nickname){ S.nickname = $('#author').value.trim(); saveSettings(); }
+      videos.unshift(meta); updateStats();
+      toast('Film opublikowany! 🎉'); location.hash = '#/watch/'+meta.id;
+    }catch(e){
+      toast('Błąd: '+(e.message||e)); status.textContent = 'Nie udało się — spróbuj ponownie.';
+      busy = false; $('#send').disabled = false;
+    }
+  };
+}
+
+function viewSettings(tab='player'){
+  const sw = (k) => `<label class="switch"><input type="checkbox" data-k="${k}" ${S[k]?'checked':''}><span></span></label>`;
+  const T = {
+    player: `
+      <div class="set"><div><b>Autoodtwarzanie</b><small>Film startuje od razu po otwarciu</small></div>${sw('autoplay')}</div>
+      <div class="set"><div><b>Odtwarzaj następny</b><small>Po zakończeniu przejdź do kolejnego filmu</small></div>${sw('autoplayNext')}</div>
+      <div class="set"><div><b>Zapętlanie</b><small>Domyślnie odtwarzaj film w pętli</small></div>${sw('loop')}</div>
+      <div class="set"><div><b>Wyciszony start</b><small>Otwieraj filmy z wyłączonym dźwiękiem</small></div>${sw('muted')}</div>
+      <div class="set"><div><b>Domyślna głośność</b><small id="volLbl">${Math.round(S.volume*100)}%</small></div><input type="range" min="0" max="1" step="0.05" value="${S.volume}" id="vol"></div>
+      <div class="set"><div><b>Domyślna prędkość</b><small>Prędkość odtwarzania</small></div>
+        <select id="speedSel">${[0.5,0.75,1,1.25,1.5,2].map(s=>`<option value="${s}" ${S.speed==s?'selected':''}>${s}×</option>`).join('')}</select></div>
+      <div class="set"><div><b>Tryb kinowy</b><small>Szeroki odtwarzacz bez listy obok</small></div>${sw('theater')}</div>`,
+    look: `
+      <div class="set"><div><b>Motyw</b><small>Wygląd aplikacji</small></div>
+        <select id="themeSel"><option value="dark">Ciemny</option><option value="light">Jasny</option><option value="system">Systemowy</option></select></div>
+      <div class="set"><div><b>Kolor akcentu</b><small>Przyciski, paski postępu</small></div>
+        <div class="swatches">${ACCENTS.map(c=>`<button style="background:${c}" data-c="${c}" class="${S.accent===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>
+      <div class="set"><div><b>Rozmiar miniatur</b><small>Gęstość siatki filmów</small></div>
+        <select id="densSel"><option value="compact">Małe</option><option value="normal">Średnie</option><option value="large">Duże</option></select></div>
+      <div class="set"><div><b>Podgląd po najechaniu</b><small>Odtwarzaj miniaturę pod kursorem</small></div>${sw('hoverPreview')}</div>`,
+    account: `
+      <div class="set"><div><b>Twój nick</b><small>Domyślny autor przesyłanych filmów</small></div>
+        <input type="text" id="nick" maxlength="40" value="${esc(S.nickname)}" placeholder="Anonim"></div>
+      <div class="set"><div><b>Hasło administratora</b><small>Pozwala usuwać filmy (ustawiane w Vercel jako ADMIN_PASSWORD)</small></div>
+        <input type="password" id="adm" value="${esc(adminPass)}" placeholder="••••••"></div>`,
+    data: `
+      <div class="set"><div><b>Ulubione</b><small>${favorites.length} filmów</small></div><button class="btn danger" data-clear="favorites">Wyczyść</button></div>
+      <div class="set"><div><b>Historia oglądania</b><small>${history.length} pozycji</small></div><button class="btn danger" data-clear="history">Wyczyść</button></div>
+      <div class="set"><div><b>Przywróć ustawienia domyślne</b><small>Nie usuwa filmów ani ulubionych</small></div><button class="btn danger" data-clear="settings">Resetuj</button></div>`
+  };
+  const names = {player:'▶ Odtwarzacz', look:'🎨 Wygląd', account:'👤 Konto', data:'🗂 Dane'};
+  app.innerHTML = `<h1>⚙️ Ustawienia</h1><div class="panel">
+    <div class="tabs">${Object.keys(T).map(k=>`<button data-t="${k}" class="${k===tab?'on':''}">${names[k]}</button>`).join('')}</div>
+    <div id="setBody">${T[tab]}</div></div>`;
+  app.querySelector('.tabs').onclick = e => { const b=e.target.closest('button'); if(b) viewSettings(b.dataset.t); };
+  const body = $('#setBody');
+  body.querySelectorAll('input[type=checkbox]').forEach(i=>i.onchange=()=>{ S[i.dataset.k]=i.checked; saveSettings(); toast('Zapisano'); });
+  const on = (sel, ev, fn) => { const el=$(sel, body); if(el) el.addEventListener(ev, fn); };
+  on('#vol','input', e=>{ S.volume=+e.target.value; $('#volLbl').textContent=Math.round(S.volume*100)+'%'; saveSettings(); });
+  on('#speedSel','change', e=>{ S.speed=+e.target.value; saveSettings(); toast('Zapisano'); });
+  if($('#themeSel',body)) $('#themeSel').value=S.theme;
+  if($('#densSel',body)) $('#densSel').value=S.density;
+  on('#themeSel','change', e=>{ S.theme=e.target.value; saveSettings(); });
+  on('#densSel','change', e=>{ S.density=e.target.value; saveSettings(); toast('Zapisano'); });
+  body.querySelectorAll('.swatches button').forEach(b=>b.onclick=()=>{ S.accent=b.dataset.c; saveSettings(); viewSettings('look'); });
+  on('#nick','change', e=>{ S.nickname=e.target.value.trim(); saveSettings(); toast('Zapisano nick'); });
+  on('#adm','change', e=>{ adminPass=e.target.value; adminPass?sessionStorage.setItem('vs_admin',adminPass):sessionStorage.removeItem('vs_admin'); toast('Zapisano na tę sesję'); });
+  body.querySelectorAll('[data-clear]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.clear; if(!confirm('Na pewno?')) return;
+    if(k==='favorites'){ favorites=[]; store.set('favorites',[]); }
+    if(k==='history'){ history=[]; store.set('history',[]); }
+    if(k==='settings'){ S={...DEFAULTS}; saveSettings(); }
+    toast('Gotowe'); viewSettings('data');
+  });
+}
+
+function viewAbout(){
+  app.innerHTML = `<h1>ℹ️ O aplikacji</h1><div class="panel" style="line-height:1.6">
+    <p><b>VidShare</b> to publiczna platforma do wrzucania i oglądania filmów MP4. Każdy przesłany film od razu widzą wszyscy odwiedzający.</p>
+    <ul><li>Obsługiwany format: <b>MP4</b> (najlepiej H.264 + AAC)</li>
+    <li>Ulubione, historia i ustawienia zapisują się w Twojej przeglądarce</li>
+    <li>Usuwanie filmów wymaga hasła administratora</li>
+    <li>Pliki przechowywane w Vercel Blob</li></ul>
+    <p style="color:var(--muted)">Nie wrzucaj treści, do których nie masz praw.</p></div>`;
+}
+
+/* ---------- router ---------- */
+async function route(){
+  const h = location.hash.replace(/^#\/?/, '');
+  const [r, arg] = h.split('/');
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active', a.dataset.r===(r||'home')));
+  $('#nav').classList.remove('open'); window.scrollTo(0,0);
+  if(r!=='') { query=''; $('#q').value=''; }
+  if(r==='watch' && arg) return viewWatch(arg);
+  if(r==='upload') return viewUpload();
+  if(r==='favorites' || r==='history') return viewList(r);
+  if(r==='settings') return viewSettings();
+  if(r==='about') return viewAbout();
+  return viewHome();
+}
+addEventListener('hashchange', route);
+$('#menuBtn').onclick = () => $('#nav').classList.toggle('open');
+$('#searchForm').onsubmit = e => { e.preventDefault(); const q=$('#q').value.trim(); activeCat='Wszystkie';
+  if(location.hash==='#/' || location.hash===''){ query=q; viewHome(); } else { location.hash='#/'; setTimeout(()=>{ query=q; $('#q').value=q; viewHome(); },0); } };
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', applySettings);
+loadVideos().then(updateStats);
+route();
+</script>
+</body>
+</html>
