@@ -1,0 +1,11 @@
+{
+  "name": "vidshare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Publiczna platforma do udostępniania filmów MP4 (Vercel + Vercel Blob)",
+  "dependencies": {
+    "@vercel/blob": "^1.0.0"
+  },
+  "engines": { "node": ">=18" }
+}
